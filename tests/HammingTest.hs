@@ -1,15 +1,13 @@
+module HammingTest (
+    hammingTests
+    ) where
+
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import Data.Matrix
 import Codes.Hamming
 import Codes.Bin
-
-main :: IO ()
-main = defaultMain tests
-
-tests :: TestTree
-tests = testGroup "Tests" [hammingTests]
 
 hammingTests :: TestTree
 hammingTests = testGroup "Hamming Tests"

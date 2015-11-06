@@ -24,13 +24,13 @@ library
 
 test-suite hamming-test
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
+  hs-source-dirs:      tests
   main-is:             Tasty.hs
   build-depends:       base
-                     , hamming
                      , matrix
                      , tasty
                      , tasty-hunit
+                     , hamming
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
