@@ -24,7 +24,7 @@ library
 
 test-suite hamming-test
   type:                exitcode-stdio-1.0
-  hs-source-dirs:      tests
+  hs-source-dirs:      test
   main-is:             Tasty.hs
   build-depends:       base
                      , matrix
