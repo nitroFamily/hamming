@@ -2,7 +2,7 @@
 module Codes.Hamming (
       -- * Тип для кодов Хэмменга
       HammingCode (..)
-      -- * Построитель типа
+      -- * Функция строящая код для требуемой длины данных
     , hamming
       -- * Кодирование и Декодирование
     , encode
@@ -10,19 +10,18 @@ module Codes.Hamming (
     ) where
 
 import Data.Matrix
-import Codes.Bin
 import Codes.Matrix
 
 -- | Синонимы типов
 type Code = (Int, Int) -- ^ Синоним кортежа обозначающий запись кода в виде @(n, k)@
-type Syndrome = [Bin]  -- ^ Синоним для массива обозначающий синдром
+type Syndrome = [Int]  -- ^ Синоним для массива обозначающий синдром
 
 -- | Тип для кодов Хэмменга
 data HammingCode = HammingCode
     { code :: Code       -- ^ Синоним кортежа обозначающий запись кода в виде @(n, k)@
     , rate :: Float      -- ^ Скорость кода
-    , getH :: Matrix Bin -- ^ Проверочная матрица
-    , getG :: Matrix Bin -- ^ Порождающая матрица
+    , getH :: Matrix Int -- ^ Проверочная матрица
+    , getG :: Matrix Int -- ^ Порождающая матрица
     } deriving Show
 
 -- | Построитель кода для заданной длины данных.
@@ -49,50 +48,52 @@ hamming i =
 -- | Кодирование массива данных
 --
 -- > let hc = hamming 2
--- > let d  = from [1,0]
+-- > let d  = [1,0]
 -- > encode hc d -> [1,1,1,0,0]
 encode :: HammingCode -- ^ Код, который будет использоваться для кодирования
-       -> [Bin]       -- ^ Массив данных
-       -> [Bin]
+       -> [Int]       -- ^ Массив данных
+       -> [Int]
 encode hc d =
     let b = fromList 1 (length d) d
         g = getG hc
-     in toList $ multStd b g
+     in map (`mod` 2) . toList $ multStd b g
 
 -- | Декодирование данных
 --
 --  Декодирование без ошибок
 --
 -- > let hc = hamming 2
--- > let encoded = encode hc $ from [1,0]
+-- > let encoded = encode hc [1,0]
 -- > decode hs encoded -> ([0,0,0], [1,0])
 --
 --  Декодирование с 1 ошибкой
 --
 -- > let hc = hamming 2
--- > encode hc $ from [1,0]       -> [1,1,1,0,0]
--- > decode hs $ from [1,1,1,1,0] -> ([0,0,1],[1,0])
+-- > encode hc [1,0]       -> [1,1,1,0,0]
+-- > decode hs [1,1,1,1,0] -> ([0,0,1],[1,0])
 --
 --  Декодирование с 2 ошибками
 --
 -- > let hc = hamming 2
--- > encode hc $ from [1,0]       -> [1,1,1,0,0]
--- > decode hs $ from [1,0,0,0,0] -> ([1,0,0],[0,0])
+-- > encode hc [1,0]       -> [1,1,1,0,0]
+-- > decode hs [1,0,0,0,0] -> ([1,0,0],[0,0])
 decode :: HammingCode -- ^ Код, который будет использоваться для декодирования
-       -> [Bin]       -- ^ Закодированная комбинация
-       -> (Syndrome, [Bin])
+       -> [Int]       -- ^ Закодированная комбинация
+       -> (Syndrome, [Int])
 decode hc v =
     let v'     = fromList 1 (length v) v
         (n, k) = code hc
         ht     = transpose $ getH hc
-        s      = toList $ multStd v' ht
+        s      = map (`mod` 2) . toList $ multStd v' ht
         c      = correctError v' s
         w      = toList . snd $ removeCols (take (n - k) parityPos) c
      in (s, w)
 
 -- | Вспомогательные функции
 
-correctError :: Matrix Bin -> Syndrome -> Matrix Bin
+correctError :: Matrix Int
+             -> Syndrome
+             -> Matrix Int
 correctError v s =
     let pos = errorPos s
      in mapCol (\_ x -> negate x) pos v
@@ -122,28 +123,32 @@ parityPos = map (\x -> 2 ^ x) [0, 1 ..]
 -- > take 5 $ parityLaws 2 -> [0,1,1,0,0]
 -- > take 5 $ parityLaws 4 -> [0,0,0,1,1]
 parityLaws :: Int  -- ^ Номер позиции проверочного бита
-           -> [Bin]
+           -> [Int]
 parityLaws p =
-    let seq = replicate (p - 1) (Bin False) ++ replicate p (Bin True) ++ [Bin False]
+    let seq = replicate (p - 1) 0 ++ replicate p 1 ++ [0]
      in concat $ repeat seq
 
 -- | Генерация проверочной матрицы для данного кода
 --
 -- Реализация примера из 'parityLaws' для общего слушая
 generateH :: Code -- ^ Кортеж (n, k)
-             -> Matrix Bin
+          -> Matrix Int
 generateH (n, k) =
     let lists = map (take n . parityLaws) $ take (n - k) parityPos
      in fromLists lists
 
 -- | Генерация матрицы А из проверочной матрицы Н
-generateA :: Code -> Matrix Bin -> Matrix Bin
+generateA :: Code
+          -> Matrix Int
+          -> Matrix Int
 generateA (n, k) mx =
     let idx = take (n - k) parityPos
      in snd $ removeCols idx mx
 
 -- | Генерация проверочной матрицы из матрицы Н
-generateG :: Code -> Matrix Bin -> Matrix Bin
+generateG :: Code
+          -> Matrix Int
+          -> Matrix Int
 generateG c@(n, k) mx =
     let at  = transpose $ generateA c mx
         sat = split at
@@ -152,13 +157,12 @@ generateG c@(n, k) mx =
 
 -- | Вычисление позиции ошибки по синдрому
 --
--- > let syndrome = from [1,0,1]
+-- > let syndrome = [1,0,1]
 -- > errorPos syndrom -> 5
-errorPos :: Syndrome -- ^ Синдром это синоним типа для массива '[Bin]'
+errorPos :: Syndrome
          -> Int
 errorPos s = sum $ zipWith func s parityPos
   where
-    func :: Bin -> Int -> Int
-    func (Bin b) i | b = i
-                   | otherwise = 0
+    func p i | p == 1 = i
+             | otherwise = 0
 
