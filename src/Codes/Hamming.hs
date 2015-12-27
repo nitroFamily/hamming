@@ -96,7 +96,7 @@ correctError :: Matrix Int
              -> Matrix Int
 correctError v s =
     let pos = errorPos s
-     in mapCol (\_ x -> negate x) pos v
+     in mapCol (\_ x -> abs (x - 1)) pos v
 
 -- | Генерирует все возможные коды Хэмменга
 --
